@@ -1,3 +1,5 @@
+![Sonic Skills](backdrop.jpg)
+
 # Sonic Skills
 
 Precision audio-engineering skills for AI agents.
