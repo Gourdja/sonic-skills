@@ -36,6 +36,8 @@ Locate the three core classes and their thread ownership:
 | `AudioBuffer::setSize()` inside `processBlock` | Buffer management code | Triggers allocation; causes xrun |
 | Modifying MIDI buffer while iterating it | MIDI event loops | Iterator invalidation; undefined behaviour |
 | `prepareToPlay` not resetting all state (e.g. filters, envelopes, delay lines) | `prepareToPlay` body | Double-call leaves stale state; causes audio artefacts |
+| `juce::CriticalSection::tryEnter()` or `enter()` on audio thread | `processBlock`, DSP helpers | `exit()`/destructor does a syscall to wake waiting threads — not realtime-safe even with `tryEnter()` |
+| `juce::SpinLock::enter()` on audio thread | `processBlock`, DSP helpers | Busy-waits on audio thread — use `tryEnter()` + fallback only; non-audio thread should use progressive back-off |
 
 ## Step 3 — Write the review
 
@@ -73,6 +75,8 @@ Fix: [concrete JUCE-idiomatic suggestion]
 | `AudioBuffer::setSize()` in `processBlock` | Call only in `prepareToPlay`; never resize during playback |
 | Mutating MIDI buffer mid-iteration | Collect into a preallocated member buffer or bounded event array, then swap/write back after iteration |
 | Missing state reset in `prepareToPlay` | Reset filters, envelopes, delay lines, and position counters unconditionally |
+| `CriticalSection::tryEnter()` in audio thread | Replace with `std::atomic<T>` or lock-free SPSC queue; `tryEnter()` + `exit()` is not safe because `exit()` does a syscall |
+| `SpinLock::enter()` on audio thread | Use `tryEnter()` + fallback only; non-audio thread should use progressive back-off (see `references/juce-violations.md` Section 4) |
 
 For full code examples (BAD/GOOD patterns, AbstractFifo usage, async dispatch) see
 `references/juce-violations.md`.

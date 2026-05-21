@@ -153,7 +153,83 @@ void timerCallback() override
 
 ---
 
-## 4. ValueTree and Listeners
+## 4. Locking and SpinLock
+
+### juce::CriticalSection on the audio thread
+
+`juce::CriticalSection` wraps a platform mutex. Locking it on the audio thread causes priority
+inversion. Even `tryEnter()` is unsafe: if it succeeds, the destructor (or `exit()`) must
+interact with the OS scheduler to wake any waiting thread — a system call.
+
+**BAD**
+```cpp
+juce::CriticalSection cs;
+
+void processBlock(AudioBuffer<float>& buffer, MidiBuffer&) override
+{
+    if (cs.tryEnter()) {
+        // ... access shared data ...
+        cs.exit();  // <-- may do a syscall to wake waiting threads
+    }
+}
+```
+
+**GOOD — use atomics or lock-free queues instead**
+```cpp
+std::atomic<float> sharedGain{1.0f};
+
+void processBlock(AudioBuffer<float>& buffer, MidiBuffer&) override
+{
+    float g = sharedGain.load(std::memory_order_relaxed);
+    buffer.applyGain(g);
+}
+```
+
+### juce::SpinLock — when you have no other choice
+
+`juce::SpinLock` is a simple atomic spinlock. It is safer than `CriticalSection` because
+`unlock()` is just an atomic store (no syscall). However:
+
+- Its API is not STL-compatible (no `std::scoped_lock` / `std::unique_lock` support).
+- It doesn't use optimal memory order flags.
+- The non-audio thread's `enter()` spins in a tight busy-wait loop, burning CPU at
+  ~200 million checks/second and draining battery on mobile devices.
+
+**If you must use a spinlock**, prefer a custom `audio_spin_mutex` with progressive back-off
+on the non-audio thread (see `audio-dsp-review/references/realtime-violations.md` Section 2
+for the full implementation). The audio thread calls only `try_lock()` + fallback.
+
+**JUCE-specific pattern with `juce::SpinLock`:**
+```cpp
+juce::SpinLock voicePoolLock;
+std::array<Voice, 32> voices;
+
+// Audio thread — tryEnter only, never enter()
+void processBlock(AudioBuffer<float>& buffer, MidiBuffer&) override
+{
+    if (voicePoolLock.tryEnter()) {
+        // ... access voices safely ...
+        voicePoolLock.exit();
+    } else {
+        // fallback: use last-known state, bypass, or fade
+    }
+}
+
+// Message thread — enter() is fine here (not realtime)
+void addVoice(const Voice& v) {
+    voicePoolLock.enter();
+    // ... modify voices ...
+    voicePoolLock.exit();
+}
+```
+
+**Prefer immutable patterns over any spinlock.** Instead of modifying the voice pool in-place,
+the message thread can build a new pool and atomically swap a pointer. The audio thread always
+reads a consistent snapshot without any lock.
+
+---
+
+## 5. ValueTree and Listeners
 
 ### ValueTree Listener Thread Assumption
 
@@ -172,7 +248,7 @@ Keep all `ValueTree` modifications on the message thread. Pass data to/from audi
 
 ---
 
-## 5. MIDI Buffer Iteration Safety
+## 6. MIDI Buffer Iteration Safety
 
 ### Modifying MidiBuffer While Iterating
 
@@ -214,7 +290,7 @@ the audio callback.
 
 ---
 
-## 6. AudioBuffer Management
+## 7. AudioBuffer Management
 
 ### setSize in processBlock
 
@@ -244,7 +320,7 @@ void processBlock(AudioBuffer<float>& buffer, MidiBuffer& midi) override
 
 ---
 
-## 7. prepareToPlay Reset Completeness
+## 8. prepareToPlay Reset Completeness
 
 Double calls to `prepareToPlay` happen legitimately (sample rate change, buffer size change, DAW transport reset). All stateful DSP objects must be fully reset.
 
@@ -279,7 +355,7 @@ Checklist for `prepareToPlay`:
 
 ---
 
-## 8. Recommended JUCE Patterns Summary
+## 9. Recommended JUCE Patterns Summary
 
 | Concern | Recommended Pattern |
 |---------|---------------------|

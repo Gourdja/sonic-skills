@@ -20,10 +20,10 @@ Sonic Skills is a curated pack of Markdown skills for reviewing, debugging, expl
 
 ## How To Use
 
-Download the latest `main` branch zip from GitHub and install into `~/.codex/skills`:
+Download the latest `main` branch zip from GitHub and install into both `~/.codex/skills` and `~/.claude/skills`:
 
 ```sh
-tmp_dir=$(mktemp -d) && curl -L https://github.com/kunitoki/sonic-skills/archive/refs/heads/main.zip -o "$tmp_dir/sonic-skills.zip" && unzip -q "$tmp_dir/sonic-skills.zip" -d "$tmp_dir" && sh "$tmp_dir/sonic-skills-main/bootstrap" install all
+tmp_dir=$(mktemp -d) && curl -fsSL https://github.com/kunitoki/sonic-skills/archive/refs/heads/main.zip -o "$tmp_dir/sonic-skills.zip" && unzip -q "$tmp_dir/sonic-skills.zip" -d "$tmp_dir" && sh "$tmp_dir/sonic-skills-main/bootstrap" install all
 ```
 
 Install all skills into your local agent skill directory:

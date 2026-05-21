@@ -38,7 +38,13 @@ unbounded bookkeeping):
 - `std::mutex`, `lock_guard`, `unique_lock`, `scoped_lock`, `shared_mutex`
 - `pthread_mutex_lock`, `pthread_rwlock_*`
 - `condition_variable::wait()`, `future::get()`, `semaphore::acquire()`
-- Spinlocks in hot paths (busy-wait burns CPU and causes starvation under contention)
+- **`std::mutex::try_lock()` + RAII wrapper** — `try_lock()` itself is non-blocking, but the
+  RAII destructor calls `unlock()`, which does a system call to wake waiting threads.
+  Not realtime-safe. Same for `std::unique_lock(mtx, std::try_to_lock)`.
+- Spinlocks without exponential back-off on the non-audio thread — busy-wait burns CPU,
+  causes starvation under contention, and drains battery on mobile devices.
+  If you must use a spinlock: audio thread calls only `try_lock()` + fallback;
+  non-audio thread uses progressive back-off (spin → `_mm_pause()` → batched pauses → occasional yield).
 
 **System calls / blocking I/O** (kernel transitions stall for unbounded time):
 - `printf`, `fprintf`, `cout`, `cerr`, `DBG()` (JUCE debug), `syslog`, `os_log`
@@ -81,6 +87,8 @@ Fix: [concrete suggestion]
 | Violation | Realtime-safe alternative |
 |-----------|--------------------------|
 | `std::mutex` for shared state | Lock-free `std::atomic<T>` for scalars after checking `is_lock_free()`; SPSC lock-free queue for structs |
+| `std::mutex::try_lock()` + RAII | `unlock()` in destructor does a syscall — not safe. Use `std::atomic_flag` spinlock with `try_lock()` only on audio thread + fallback |
+| Spinlock with busy-wait on non-audio thread | Progressive back-off: spin 5× → `_mm_pause()` 10× → batched 10× `_mm_pause()` → occasional `std::this_thread::yield()` |
 | `new`/`delete` in callback | Allocate in `prepareToPlay`; use pre-allocated pool or ring buffer |
 | `printf`/`DBG()` | Write to a lock-free ring buffer; drain from a background thread |
 | `std::string` ops | `std::array<char,N>` + `snprintf`; format on UI thread |

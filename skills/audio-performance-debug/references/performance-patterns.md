@@ -207,6 +207,8 @@ worsens when the UI is busy (e.g., repainting a spectrum analyzer).
 | `std::mutex` protecting a shared parameter | `std::atomic<float>` (lock-free for trivial types) |
 | `std::mutex` protecting a shared struct | SPSC ring buffer (`moodycamel::ReaderWriterQueue`) |
 | `std::condition_variable` involving audio thread | Audio thread polls a lock-free flag/queue; any waiting happens only on non-audio threads |
+| `std::mutex::try_lock()` + RAII wrapper | `unlock()` in destructor does a syscall. Use `std::atomic_flag` spinlock with `try_lock()` only on audio thread + fallback strategy |
+| Naive spinlock burning CPU on non-audio thread | Progressive back-off: spin → `_mm_pause()` → batched pauses → occasional yield. See `audio-dsp-review/references/realtime-violations.md` Section 2 for the full `audio_spin_mutex` implementation |
 
 ---
 

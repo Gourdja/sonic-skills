@@ -25,7 +25,7 @@ pointers to specific checks in `audio-dsp-review` and `audio-numerics-review`.
 
 ### Checks in audio-dsp-review
 - Memory allocation scan: any `new`/`delete`/`push_back` in the call graph.
-- Lock scan: any `std::mutex`, `lock_guard`, or `condition_variable` reachable from callback.
+- Lock scan: any `std::mutex`, `lock_guard`, `unique_lock` (including `std::try_to_lock` — the destructor's `unlock()` is a syscall), `condition_variable`, or spinlock without `try_lock`-only audio-thread usage reachable from callback.
 - System call scan: any `printf`, `DBG()`, or file I/O.
 
 ---

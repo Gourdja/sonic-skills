@@ -76,15 +76,109 @@ General-purpose OS schedulers do not guarantee priority inheritance. Even if the
 `PTHREAD_PRIO_INHERIT`), you're depending on undocumented scheduler behavior that can change
 between OS releases.
 
-**TryLock caveat:** `try_lock()` avoids blocking, but gives no guarantee you'll ever acquire the
-lock — so you can't use it to protect anything that must be accessed every callback.
+### Why `std::mutex::try_lock()` is NOT safe
 
-**Safe alternatives — prefer in this order:**
+A common misconception: `try_lock()` doesn't block, so it's realtime-safe. **This is wrong.**
+The problem is the RAII wrapper:
 
-1. Lock-free `std::atomic<T>` for scalars — verify with `is_lock_free()` for the target type/platform
-2. SPSC ring buffer for passing structs or events between UI↔audio
-3. Double-buffering with atomic swap for larger parameter snapshots
-4. `try_lock` only as a last resort, only for optional-access patterns
+```cpp
+// BAD — looks safe but isn't
+if (std::unique_lock lock(mtx, std::try_to_lock); lock.owns_lock()) {
+    // audio processing
+} // <-- destructor calls mtx.unlock() — SYSTEM CALL to wake waiting threads
+```
+
+`try_lock()` itself is non-blocking. But when the `unique_lock` goes out of scope, its
+destructor calls `std::mutex::unlock()`. If another thread is waiting on that mutex, `unlock()`
+must interact with the OS thread scheduler to wake it — a system call. Not realtime-safe.
+
+**Never use `std::mutex` on the audio thread — not even with `try_lock()`.**
+
+### Spinlocks — when you have no other choice
+
+The ideal solution is to avoid locks entirely: use immutable data structures, atomics, or
+lock-free queues. But if you're stuck with shared mutable data structures (e.g., a voice pool
+or audio graph that another thread modifies), a spinlock with `try_lock()` on the audio thread
+is the least-bad fallback.
+
+**Critical rule:** The audio thread **only** calls `try_lock()` and falls back to an
+alternative strategy on failure. It **never** spins in a `lock()` loop.
+
+The non-audio thread (message/UI/loading) calls `lock()`, which spins. A naive spinlock burns
+CPU at ~200 million checks/second, maxing out the core and draining battery. Use progressive
+back-off tuned for the audio use case (typically 2-thread contention, consumer hardware):
+
+```cpp
+#include <array>
+#include <thread>
+#include <atomic>
+#include <emmintrin.h>  // _mm_pause
+
+struct audio_spin_mutex {
+    void lock() noexcept {
+        // Stage 1: pure spin (~5 × 5 ns = 25 ns) — fastest path for very short critical sections
+        constexpr std::array iterations = {5, 10, 3000};
+
+        for (int i = 0; i < iterations[0]; ++i)
+            if (try_lock()) return;
+
+        // Stage 2: single _mm_pause() per iteration (~10 × 40 ns = 400 ns)
+        // _mm_pause() idles the CPU briefly, saves power, helps hyperthreading
+        for (int i = 0; i < iterations[1]; ++i) {
+            if (try_lock()) return;
+            _mm_pause();
+        }
+
+        // Stage 3: batched 10× _mm_pause() (~3000 × 350 ns ≈ 1 ms)
+        // 10 pauses between checks keeps overhead at ~1% while staying responsive
+        while (true) {
+            for (int i = 0; i < iterations[2]; ++i) {
+                if (try_lock()) return;
+                _mm_pause(); _mm_pause(); _mm_pause(); _mm_pause(); _mm_pause();
+                _mm_pause(); _mm_pause(); _mm_pause(); _mm_pause(); _mm_pause();
+            }
+            // After ~1 ms of waiting, give the scheduler one chance to sort things out
+            std::this_thread::yield();
+        }
+    }
+
+    bool try_lock() noexcept {
+        return !flag.test_and_set(std::memory_order_acquire);
+    }
+
+    void unlock() noexcept {
+        flag.clear(std::memory_order_release);
+    }
+
+private:
+    std::atomic_flag flag = ATOMIC_FLAG_INIT;
+};
+```
+
+Key design decisions:
+- **Stage 1 (pure spin, ~25 ns):** Covers the shortest critical sections (empty vector lookup).
+- **Stage 2 (single pause, ~400 ns):** Covers quick traversals; `_mm_pause()` saves power.
+- **Stage 3 (batched pauses, ~1 ms):** Covers full audio graph processing. 10× `_mm_pause()`
+  between checks keeps overhead at ~1% while the core stays mostly idle.
+- **Single yield, not yield-in-a-loop:** Yielding in a loop burns CPU and keeps the kernel
+  busy rescheduling. One yield after ~1 ms gives the scheduler a chance, then back to low-power
+  spinning.
+- **No sleeping:** Sleeping risks missing the narrow window when the audio thread releases the
+  lock (the audio thread may hold it for 90%+ of the callback period). Missing that window
+  causes dropped GUI frames.
+
+On ARM, replace `_mm_pause()` with `__wfe()` (Wait For Event) for equivalent behaviour.
+
+**Tune the iteration counts for your use case.** Measure your critical section durations and
+adjust. The numbers above are tuned for a 2.9 GHz Intel i9 with typical audio plugin workloads.
+
+### Safe alternatives — prefer in this order:
+
+1. **Lock-free `std::atomic<T>` for scalars** — verify with `is_lock_free()` for the target type/platform
+2. **SPSC ring buffer** for passing structs or events between UI↔audio
+3. **Double-buffering with atomic swap** for larger parameter snapshots
+4. **Immutable data structures** — message thread peels off a modified copy; audio thread keeps reading the previous version
+5. **`audio_spin_mutex` with `try_lock()` + fallback** — only as a last resort, only for optional-access patterns
 
 ```cpp
 // GOOD — atomic for parameter

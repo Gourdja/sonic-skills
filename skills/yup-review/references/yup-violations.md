@@ -197,7 +197,52 @@ for (int i = 0; i < pendingCount; ++i)
 
 ---
 
-## 5. Bus Layout and Channel Access
+## 5. Locking and Thread Synchronisation
+
+### yup::CriticalSection on the audio thread
+
+`yup::CriticalSection` wraps a platform mutex. Locking it on the audio thread causes priority
+inversion. Even `tryEnter()` is unsafe: if it succeeds, the destructor (or `exit()`) must
+interact with the OS scheduler to wake any waiting thread — a system call.
+
+**BAD**
+```cpp
+yup::CriticalSection cs;
+
+void processBlock (yup::AudioSampleBuffer& buffer, yup::MidiBuffer&) override
+{
+    if (cs.tryEnter()) {
+        // ... access shared data ...
+        cs.exit();  // <-- may do a syscall to wake waiting threads
+    }
+}
+```
+
+**GOOD — use atomics or lock-free queues instead**
+```cpp
+std::atomic<float> sharedGain { 1.0f };
+
+void processBlock (yup::AudioSampleBuffer& buffer, yup::MidiBuffer&) override
+{
+    const float g = sharedGain.load (std::memory_order_relaxed);
+    buffer.applyGain (g);
+}
+```
+
+### Spinlocks — last resort
+
+If you must use a spinlock (e.g., for a shared voice pool or audio graph that another thread
+modifies), the audio thread calls only `try_lock()` + fallback. The non-audio thread uses
+progressive back-off to avoid burning CPU. See `audio-dsp-review/references/realtime-violations.md`
+Section 2 for the full `audio_spin_mutex` implementation.
+
+**Prefer immutable patterns over any spinlock.** Build a new data structure off the audio
+thread and atomically swap a pointer. The audio thread always reads a consistent snapshot
+without any lock.
+
+---
+
+## 6. Bus Layout and Channel Access
 
 YUP exposes fixed bus layout through `yup::AudioBusLayout`, but `processBlock` still receives a buffer from the wrapper/host. Guard channel access unless the layout and format guarantee it.
 
@@ -224,7 +269,7 @@ If the algorithm requires stereo, declare stereo output in the processor constru
 
 ---
 
-## 6. Lifecycle Reset and Flush
+## 7. Lifecycle Reset and Flush
 
 `prepareToPlay` can be called repeatedly on sample-rate or block-size changes. CLAP reset calls `flush()`. Both must leave the processor in a deterministic state.
 
